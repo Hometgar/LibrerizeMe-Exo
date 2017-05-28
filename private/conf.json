@@ -1,0 +1,17 @@
+{
+  "app":{
+    "host": "localhost:3000"
+  },
+  "db":{
+    "user":"dev-librarizeme",
+    "password":"password",
+    "url":"ds155411.mlab.com",
+    "port":"55411",
+    "db":"librarizeme"
+  },
+  "mail":{
+    "service":"Hotmail",
+    "user": "mikeyredon@gmail.com",
+    "pass": "V4n3ss4260<314"
+  }
+}
