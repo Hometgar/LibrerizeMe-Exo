@@ -388,6 +388,8 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 			})
 	});
 	
+	router.post('/connection',)
+	
 	//=========PUT==========//
 	router.put('/:id',(req, res, next)=>{
 		let userInfos = {
