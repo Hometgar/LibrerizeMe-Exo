@@ -120,7 +120,7 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 		})
 	};
 	
-	let cancelFriendshipDemand = (userId, friendId)=>{
+	let deleteFriendship = (userId, friendId)=>{
 		return new Promise((resolve, reject)=>{
 			if(!userId || !friendId){
 				return reject({
@@ -131,7 +131,7 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 			UsersModel.findById(userId)
 				.then((user)=>{
 					let index = user.friends.findIndex((friend)=>{
-					    return friend.user.equals(id(friendId)) && friend.state === 'WAITING'
+					    return friend.user.equals(id(friendId))
 					});
 					user.friends.splice(index,1);
 					user.save()
@@ -481,8 +481,122 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 	/**
 	 * delete/ refuse friendship
  	 */
-	router.delete(':id/friends/:id_friend',(req, res, next)=>{
-		
+	router.delete('/:id/friends/:id_friend',(req, res, next)=>{
+		UsersModel.find({
+			_id: {
+				$in: [
+					id(req.params.id),
+					id(req.params.id_friend)
+				]
+			}
+		})
+			.then((users)=> {
+				let user = users.filter((user) => {
+					return user._id.equals(id(req.params.id))
+				})[0];
+				let friend = users.filter((user) => {
+					return user._id.equals(id(req.params.id_friend))
+				})[0];
+
+				if (!user || !friend) {
+					return res.status(404).json({
+						error: true,
+						errorInfos: "NOT FOUND"
+					})
+				}
+				let inFriendList = user.friends.find((friend) => {
+					return friend.user.equals(id(req.params.id_friend))
+				});
+
+				let inUserWaitingList = user.waitingList.find((friendID) => {
+					return id(friendID).equals(id(req.params.id_friend))
+				});
+
+				if (!inFriendList && !inUserWaitingList) {
+					console.log("WARUM!!")
+					return res.status(409).json({
+						error: true,
+						errorInfos: "INVALID INFORMATION"
+					})
+				}
+
+				if(inFriendList) {
+					console.log("inFriendList");
+					deleteFriendship(user._id, friend._id)
+						.then((user) => {
+							let isInWaitingList = false;
+							if (friend.waitingList.length > 0) {
+								isInWaitingList = friend.waitingList.find((asker) => {
+									return id(asker).equals(id(req.params.id));
+								});
+							}
+							if (isInWaitingList) {
+								console.log("inWAITINGFriendList");
+								delUserFromWaitingList(friend._id, user._id)
+									.then((friend) => {
+										return res.status(200).json({
+											error: false
+										});
+									})
+									.catch((err) => {
+										throw err;
+									})
+							} else {
+								console.log("NOTinWAITINGFriendList");
+								deleteFriendship(friend._id, user._id)
+									.then((friend) => {
+										return res.status(200).json({
+											error: false
+										})
+									})
+									.catch((err) => {
+										throw err;
+									})
+							}
+						})
+						.catch((err) => {
+							throw err;
+						})
+				}else{
+					console.log("NOT inFriendList");
+					delUserFromWaitingList(user._id,friend._id)
+						.then((user) => {
+							let inFriendFriendList = friend.friends.find((friend) => {
+								return friend.user.equals(id(req.params.id))
+							});
+							if(inFriendFriendList) {
+								console.log("inFriendFriendList");
+								deleteFriendship(friend._id, user._id)
+									.then((friend) => {
+										return res.status(200).json({
+											error: false
+										})
+									})
+									.catch((err) => {
+										return res.status(500).json({
+											error: true,
+											errorInfos: err
+										});
+									})
+							}else{
+								console.log("NOT inFriendFriendList");
+								return res.status(409).json({
+									error: true,
+									errorInfos: "INVALID INFORMATION"
+								});
+							}
+						})
+						.catch((err) => {
+							throw err;
+						})
+				}
+			})
+			.catch((err) => {
+				res.status(500).json({
+					error: true,
+					errorInfos: err
+				})
+			})
 	});
 
 	router.delete('/connection', (req, res, next) => {
