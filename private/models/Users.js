@@ -25,6 +25,7 @@ module.exports = (app, connection) =>{
             type: Boolean,
             default: false
         },
+        mailToken: Schema.Types.String,
         products: [{
                 type: ObjectID,
                 ref: "Product"

@@ -202,6 +202,49 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 				next(err);
 			})
 	});
+	
+	router.get('/:id/confirm/:token', (req, res, next) => {
+		UsersModel.findById(req.params.id)
+			.then((user) => {
+				if(user) {
+					bcrypt.compare(req.params.token, user.mailToken)
+						.then(() => {
+							user.asBeenVerified = true;
+							user.save()
+								.then((user) => {
+									return res.status(200).json({
+										error: false
+									})
+								})
+								.catch((err) => {
+									return res.status(500).json({
+										error: true,
+										errorInfos: err
+									})
+								})
+						})
+						.catch((err) => {
+							return res.status(409).json({
+								error: true,
+								errorInfos: "NOT AUTHORISED"
+							})
+						})
+				}else{
+					return res.status(404).json({
+						error: true,
+						errorInfos: "NOT FOUND"
+					})
+				}
+			})
+			.catch((err) => {
+				return res.status(500).json({
+					error: true,
+					errorInfos: err
+				})
+			})
+	});
+
+	
 	//=========POST==========//
 	/**
      * add user to db with verification mail
@@ -236,50 +279,70 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 		        userInfos.password = hash;
 			    createUser(userInfos)
 				    .then((newUser)=>{
-					
-					    let message = {
-						    sender: '"LibrarizeMe" <librarizeme@no-reply.com>',
-						    from: 'librarizeme@no-reply.com',
-						    to: userInfos.email,
-						    subject: 'Confirmation of your mail',
-						    text: "Please click on the link below to confirm your mail address\n" +
-                            conf.app.host+"/email/confirm/"+userInfos._id,
-						    html: '<p>Please click on the link below to confirm your mail address<br>' +
-                            '<a href="'+conf.app.host+"/email/confirm/"+userInfos._id+'>'+conf.app.host+"/email/confirm/"+userInfos._id+'</a> </p>'
-					    };
-					    
-					    //!\ TODO : remettre l'envoie de mail, genant pour le dev et les tests
-					    
-					    /*transport.sendMail(message,(err)=>{
-					        console.log(err);
-					        if(err){
-						        UsersModel.remove({_id: newUser._id})
-							        .then(()=>{
-								        return res.status(500).json({
-									        error: true,
-									        errorInfos: "ERROR SEVER"
-								        })
-							        })
-							        .catch((err)=>{
-								        console.log(err);
-								        return res.json({err: err})
-							        })
-                            }else{
-						        res.status(201).json({
-							        error: false,
-							        user: newUser
-						        })
-                            }
-                        });*/
-					    res.status(201).json({
-						    error: false,
-						    user: newUser
-					    })
+
+						let stringLength = 20;
+
+						// list containing characters for the random string
+						let stringArray = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+
+						let token = "";
+
+						// build a string with random characters
+						for (let i = 1; i < stringLength; i++) {
+							let rndNum = Math.ceil(Math.random() * stringArray.length) - 1;
+							token = token + stringArray[rndNum];
+						}
+
+						let id = newUser._id;
+
+						let message = {
+							sender: '"LibrarizeMe" <librarizeme@no-reply.com>',
+							from: 'librarizeme@no-reply.com',
+							to: userInfos.email,
+							subject: 'Confirmation of your mail',
+							text: "Please click on the link below to confirm your mail address\n" +
+							conf.app.host+"/users/"+id+"/confirm/"+token,
+							html: '<p>Please click on the link below to confirm your mail address<br>' +
+							'<a href="http://'+conf.app.host+"/users/"+id+"/confirm/"+token+'">'+conf.app.host+"/users/"+id+"/confirm/"+token+'</a> </p>'
+						};
+
+						console.log("GONNA SEND!");
+						//!\ TODO : remettre l'envoie de mail, genant pour le dev et les tests
+
+						transport.sendMail(message,(err)=>{
+							console.log(err);
+							if(err){
+								UsersModel.remove({_id: newUser._id})
+									.then(()=>{
+										return res.status(500).json({
+											error: true,
+											errorInfos: "ERROR SEVER"
+										})
+									})
+									.catch((err)=>{
+										console.log(err);
+										return res.json({err: err})
+									})
+							}else{
+								newUser.mailToken = token;
+								newUser.save()
+									.then((user) => {
+										res.status(201).json({
+											error: false,
+											user: user
+										})
+									})
+									.catch((err) => {
+										return res.status(500).json({
+											error: true,
+											errorInfos: err
+										});
+									});
+							}
+
+						});
 				    })
-				    .catch((err)=>{
-					    console.log(err);
-					    next(err);
-				    })
+
             })
         });
 	});
