@@ -4,7 +4,7 @@ let bcrypt = require('bcrypt');
 let nodeMailer = require('nodemailer');
 let id = require('mongoose').Types.ObjectId;
 
-//middleware
+//middleware to reject non-connect user
 const needConnection = require('../private/script/need-connection');
 
 //app conf
@@ -22,7 +22,7 @@ let transport = nodeMailer.createTransport({
 	}
 });
 
-module.exports = (app, UsersModel, ProductsModel)=>{
+module.exports = (app, UsersModel, ProductsModel, passport)=>{
 	"use strict";
 	
 	/**
@@ -322,8 +322,7 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 				}
 				
 				let isWaiting = user.waitingList.indexOf(friend._id) > -1;
-				
-				console.log(isWaiting);
+
 				
 				if(isWaiting){
 					//validation of a friendship demand
@@ -388,7 +387,9 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 			})
 	});
 	
-	router.post('/connection',)
+	router.post('/connection',passport.authenticate('local'), (req, res, next) => {
+		res.json(req.user);
+	});
 	
 	//=========PUT==========//
 	router.put('/:id',(req, res, next)=>{
@@ -474,13 +475,19 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 			
 		
 	});
-	
+
+	//=========DELETE==========//
+
 	/**
 	 * delete/ refuse friendship
  	 */
 	router.delete(':id/friends/:id_friend',(req, res, next)=>{
-	    //TODO
 		
+	});
+
+	router.delete('/connection', (req, res, next) => {
+		req.logOut();
+		res.status(200).send();
 	});
 	
 	return router;

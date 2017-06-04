@@ -36,6 +36,27 @@ app.use(sessions({
 	duration: 24 * 60 * 60 * 1000, // how long the session will stay valid in ms
 }));
 
+
+//passport user connection handler
+let passport = require('passport');
+let localStrategy = require('./private/script/local-connection')(passport, UsersModel);
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.serializeUser(function(user, done) {
+	done(null, user);
+});
+
+passport.deserializeUser(function(user, done) {
+	UsersModel.find({pseudo: user.pseudo})
+		.then((user)=>{
+			done(null, user);
+		})
+		.catch((err) => {
+			done(err, null);
+		})
+});
+
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -43,7 +64,7 @@ app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 //routes
-app.use('/users', require('./routes/users')(app, UsersModel, ProductsModel));
+app.use('/users', require('./routes/users')(app, UsersModel, ProductsModel, passport));
 app.use('/products', require('./routes/products')(app, UsersModel, ProductsModel));
 
 // catch 404 and forward to error handler

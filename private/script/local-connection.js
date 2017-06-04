@@ -2,8 +2,9 @@ let passport = require('passport');
 let LocalStrategy = require('passport-local').Strategy;
 let bcrypt = require('bcrypt');
 
-module.exports = (userModel)=>{
-	passport.use(new LocalStrategy({
+module.exports = (passport, userModel)=>{
+	passport.use('local',
+		new LocalStrategy({
 			usernameField: 'pseudo',
 			passwordField: 'password'
 		},
@@ -25,7 +26,7 @@ module.exports = (userModel)=>{
 						    errorInfos: "INVALID CREDENTIALS"
 					    });
 				    }
-					
+
 					return done(null, user);
 				});
 			});
