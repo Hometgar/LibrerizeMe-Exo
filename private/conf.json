@@ -1,0 +1,17 @@
+{
+  "app":{
+    "host": "<APP-HOST>"
+  },
+  "db":{
+    "user":"<DB-USER>",
+    "password":"<DB-USER-PASS>",
+    "url":"<DB-URL>",
+    "port":"<DB-PORT>",
+    "db":"<DB-NAME>"
+  },
+  "mail":{
+    "service":"<MAIL-SERVICE>",
+    "user": "<MAIL-ADRESS>",
+    "pass": "<MAIL-PASS>"
+  }
+}
