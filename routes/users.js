@@ -6,6 +6,7 @@ let id = require('mongoose').Types.ObjectId;
 
 //middleware to reject non-connect user
 const needConnection = require('../private/script/need-connection');
+const needToBeOwner = require('../private/script/needToBeOwner');
 
 //app conf
 const fs = require('fs');
@@ -24,6 +25,7 @@ let transport = nodeMailer.createTransport({
 
 module.exports = (app, UsersModel, ProductsModel, passport)=>{
 	"use strict";
+	
 	
 	/**
      * fonction ajout dans la bdd
@@ -148,6 +150,21 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 		})
 	};
 	
+	let generateToken = ()=>{
+		let stringLength = 20;
+		
+		// list containing characters for the random string
+		let stringArray = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+		
+		let token = "";
+		
+		// build a string with random characters
+		for (let i = 1; i < stringLength; i++) {
+			let rndNum = Math.ceil(Math.random() * stringArray.length) - 1;
+			token = token + stringArray[rndNum];
+		}
+		return token;
+	};
 	//=========GET==========//
 	/**
 	 * Get users list by pack of 20
@@ -197,6 +214,43 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
                     error: true,
                     errorInfos: "NOT FOUND"
                 })
+			})
+			.catch((err)=>{
+				next(err);
+			})
+	});
+	
+	/**
+	 * Get user by id
+	 */
+	router.get('/:id/friends',(req, res, next)=>{
+		UsersModel.findById(req.params.id)
+			.then((user)=>{
+				if(user){
+					UsersModel.find({
+						id: {
+							$in: user.friends
+						}
+					})
+						.then((friends)=>{
+							return res.status(200).json({
+								error: false,
+								friends: friends
+							})
+						})
+						.catch((err)=>{
+						    return res.status(500).json({
+							    error: true,
+							    errorInfos: err
+						    })
+						})
+					
+				}else {
+					return res.status(404).json({
+						error: true,
+						errorInfos: "NOT FOUND"
+					})
+				}
 			})
 			.catch((err)=>{
 				next(err);
@@ -280,18 +334,7 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 			    createUser(userInfos)
 				    .then((newUser)=>{
 
-						let stringLength = 20;
-
-						// list containing characters for the random string
-						let stringArray = ['0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
-
-						let token = "";
-
-						// build a string with random characters
-						for (let i = 1; i < stringLength; i++) {
-							let rndNum = Math.ceil(Math.random() * stringArray.length) - 1;
-							token = token + stringArray[rndNum];
-						}
+						let token = generateToken();
 
 						let id = newUser._id;
 
