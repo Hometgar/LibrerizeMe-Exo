@@ -1,17 +1,17 @@
 {
   "app":{
-    "host": "<APP-HOST>"
+    "host": "localhost:3000"
   },
   "db":{
-    "user":"<DB-USER>",
-    "password":"<DB-USER-PASS>",
-    "url":"<DB-URL>",
-    "port":"<DB-PORT>",
-    "db":"<DB-NAME>"
+    "user":"dev-librarizeme",
+    "password":"password",
+    "url":"ds155411.mlab.com",
+    "port":"55411",
+    "db":"librarizeme"
   },
   "mail":{
-    "service":"<MAIL-SERVICE>",
-    "user": "<MAIL-ADRESS>",
-    "pass": "<MAIL-PASS>"
+    "service":"Gmail",
+    "user": "mikeyredon@gmail.com",
+    "pass": "V4n3ss4260<314"
   }
 }

@@ -244,7 +244,7 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 			})
 	});
 
-	
+
 	//=========POST==========//
 	/**
      * add user to db with verification mail
