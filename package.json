@@ -6,6 +6,7 @@
     "start": "node ./bin/www"
   },
   "dependencies": {
+    "amazon-product-api": "^0.4.3",
     "bcrypt": "^1.0.2",
     "body-parser": "~1.17.1",
     "client-sessions": "^0.8.0",

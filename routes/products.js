@@ -29,6 +29,26 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 				next(err);
 			})
 	});
+
+	//=========POST==========//
+	/**
+	 * add user to db with verification mail
+	 * params pseudo, mail, password, verifyMail, verifyPassword
+	 */
+	router.post('/',(req, res, next)=>{
+		let productInfos = {
+			EAN: req.body.EAN
+		};
+
+		if(!productInfos.EAN){
+			return res.status(401).json({
+				error: true,
+				errorInfos: "INVALID INFORMATION"
+			})
+		}
+
+
+	});
 	
 	return router;
 };
