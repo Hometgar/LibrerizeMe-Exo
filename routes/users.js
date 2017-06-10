@@ -185,8 +185,46 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 					})
 				});
 			})
+			.catch((err)=>{return res.status(500).json({
+				error: true,
+				errorInfos: err
+			})
+			})
+	});
+	
+	router.get('/search', (req, res, next)=>{
+		let filter = {};
+		
+		filter['$or'] = [];
+		let keywordKey = [
+			'pseudo',
+			'firstname',
+			'lastname',
+			'email'
+		];
+		
+		keywordKey.forEach((key)=>{
+			let o ={};
+			o[key] = {
+				$regex: new RegExp('.*('+ req.query.keywords.split(',').join('|') +').*', "i")
+			};
+			filter.$or.push(o);
+		});
+		
+		UsersModel.find(filter)
+			.limit(20)
+			.skip(req.query.offset? req.query.offset * 20: 0)
+			.then((users)=>{
+				return res.status(200).json({
+					error: false,
+					users: users
+				})
+			})
 			.catch((err)=>{
-				next(err);
+				return res.status(500).json({
+					error: true,
+					errorInfos: err
+				})
 			})
 	});
 	
@@ -203,9 +241,11 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 					        id: user._id,
 					        pseudo: user.pseudo,
 					        email: user.email,
-					        product: user.product,
-					        firsrname: user.firsrname,
-					        lastname: user.lastname
+					        products: user.products,
+					        firstname: user.firstname,
+					        friends: user.friends,
+					        lastname: user.lastname,
+					        emprunts: user.emprunts
 				        }
 			        })
                 }
@@ -216,12 +256,50 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
                 })
 			})
 			.catch((err)=>{
-				next(err);
+				return res.status(500).json({
+					error: true,
+					errorInfos: err
+				})
 			})
 	});
 	
 	/**
 	 * Get user by id
+	 */
+	router.get('/:id/products',(req, res, next)=>{
+		UsersModel.findById(req.params.id)
+			.then((user)=>{
+				if(user){
+					ProductsModel.find({
+						id: {
+							$in: [
+								user.products
+							]
+						}
+					})
+						.then((products)=>{
+							return res.status(200).json({
+								error: false,
+								products: products
+							});
+						})
+				}
+				
+				return res.status(404).json({
+					error: true,
+					errorInfos: "USER NOT FOUND"
+				})
+			})
+			.catch((err)=>{
+				return res.status(500).json({
+					error: true,
+					errorInfos: err
+				})
+			})
+	});
+	
+	/**
+	 * Get friend of :id user
 	 */
 	router.get('/:id/friends',(req, res, next)=>{
 		UsersModel.findById(req.params.id)
@@ -493,11 +571,140 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 			})
 	});
 	
+	/**
+	 * Ask for a product
+	 */
+	router.post('/:id/friends/:id_friend/products/:id_product',(req, res, next)=>{
+		UsersModel.find({
+			_id: {
+				$in: [
+					id(req.params.id),
+					id(req.params.id_friend)
+				]
+			}
+		})
+			.then((users)=>{
+				let user = users.filter((user)=>{
+					return user._id.equals(id(req.params.id))
+				})[0];
+				let friend = users.filter((user)=>{
+					return user._id.equals(id(req.params.id_friend))
+				})[0];
+				
+				if(!user || !friend){
+					return res.status(404).json({
+						error: true,
+						errorInfos: "USER NOT FOUND"
+					})
+				}
+				let exist = user.emprunts.find((emprunt)=>{
+					console.log(emprunt);
+					if(emprunt.owner.equals(req.params.id_friend)
+						&& emprunt.product.equals(id(req.params.id_product))
+						&& emprunt.state !== 'RESTITUTE'){
+						return true;
+					}
+				});
+				
+				if(exist){
+					return res.status(409).json({
+						error: true,
+						errorInfos: "ALREADY EXIST"
+					})
+				}
+				
+				let friendAsProduct = friend.products.find((product)=>{
+				    return product.equals(req.params.id_product);
+				});
+				
+				if(!friendAsProduct){
+					return res.status(403).json({
+						error: true,
+						errorInfos: "PRODUCT NOT AVAILABLE"
+					})
+				}
+				
+				ProductsModel.findById(req.params.id_product)
+					.then((product)=>{
+					    if(product){
+						    user.emprunts.push({
+							    owner: friend._id,
+							    product: product._id,
+							    state: 'WAITING'
+						    });
+						    user.save()
+							    .then((user)=>{
+							        friend.emprunts.push({
+								        friend: user._id,
+								        product: product._id,
+								        state: 'WAITING'
+							        })
+								    friend.save()
+									    .then((friend)=>{
+									        res.status(200).json({
+										        error: false
+									        });
+									    })
+									    .catch((err)=>{
+										    return res.status(500).json({
+											    error: true,
+											    errorInfos: err.message
+										    })
+									    })
+							    })
+							    .catch((err)=>{
+								    return res.status(500).json({
+									    error: true,
+									    errorInfos: err.message
+								    })
+							    })
+					    }else{
+						    return res.status(404).json({
+							    error: true,
+							    errorInfos: "PRODUCT NOT FOUND"
+						    })
+					    }
+					})
+				
+			})
+	});
+	
+	router.post('/:id/products/:id_product',(req, res, next)=>{
+	    UsersModel.findById(req.params.id)
+		    .then((user)=>{
+		        if(user){
+		        	ProductsModel.findById(req.params.id_product)
+				        .then((product)=>{
+				            if(product){
+				            	user.products.push(product._id);
+				            	user.save()
+						            .then((user)=>{
+						                res.status(200).json({
+							                error: false
+						                })
+						            })
+				            }else{
+					            return res.status(404).json({
+						            error: true,
+						            errorInfos: "PRODUCT NOT FOUND"
+					            })
+				            }
+				        })
+		        }else{
+			        return res.status(404).json({
+				        error: true,
+				        errorInfos: "USER NOT FOUND"
+			        })
+		        }
+		    })
+	});
+	
 	router.post('/connection',passport.authenticate('local'), (req, res, next) => {
 		res.json(req.user);
 	});
 	
 	//=========PUT==========//
+	
 	router.put('/:id',(req, res, next)=>{
 		let userInfos = {
 			pseudo : req.body.pseudo,
@@ -581,6 +788,98 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 			
 		
 	});
+	
+	router.put('/:id/emprunts/:id_emprunt', (req, res, next)=>{
+		if (!req.body.state
+			|| (req.body.state !== UsersModel.stateEmprunt.VALIDATE
+			&& req.body.state !== UsersModel.stateEmprunt.RESTITUTE
+			&& req.body.state !== UsersModel.stateEmprunt.REFUSED)){
+			return res.status(403).json({
+				error: true,
+				errorInfos: "INCORRECT STATE"
+			})
+		}
+	    UsersModel.findById(req.params.id)
+		    .then((user)=>{
+		        if(user){
+			        console.log('test');
+		            let index = user.emprunts.findIndex((emprunt)=>{
+			            console.log(emprunt._id, req.params.id_emprunt);
+		                return id(emprunt._id).equals(id(req.params.id_emprunt));
+		            });
+			
+			        console.log(index);
+		         
+			        if(index < 0){
+				        return res.status(404).json({
+					        error: true,
+					        errorInfos: "NOT FOUND"
+				        })
+			        }
+			        
+			        user.emprunts[index].state = req.body.state;
+			
+			        user.save()
+				        .then((user)=>{
+					        console.log('then user');
+					        let friend = user.emprunts[index].friend ? user.emprunts[index].friend : user.emprunts[index].owner;
+					
+					        UsersModel.findById(friend)
+						        .then((result)=>{
+							        console.log('then friend');
+							        let indexFriend = result.emprunts.findIndex((emprunt)=>{
+								        console.log('test');
+								        let owner = user.emprunts[index].friend ? false : true;
+								        console.log(owner);
+								        if(owner){
+									        return emprunt.friend.equals(user._id) && emprunt.product.equals(id(req.params.id_product)) && emprunt.state !== UsersModel.stateEmprunt.RESTITUTE || emprunt.state !== UsersModel.stateEmprunt.REFUSED
+								        }else{
+									        return emprunt.owner.equals(user._id) && emprunt.product.equals(id(req.params.id_product)) && emprunt.state !== UsersModel.stateEmprunt.RESTITUTE || emprunt.state !== UsersModel.stateEmprunt.REFUSED
+								        }
+							        });
+							
+							        console.log('index :'+indexFriend);
+							        
+							        result.emprunts[indexFriend].state = req.body.state;
+							
+							        console.log('test');
+							        
+							        result.save()
+								        .then((friend)=>{
+									        console.log('then friend')
+								            res.status(200).json({
+									            error: false
+								            })
+								        })
+								        .catch((err)=>{
+									        return res.status(500).json({
+										        error: true,
+										        errorInfos: err
+									        });
+								        })
+						        })
+						        .catch((err)=>{
+							        return res.status(500).json({
+								        error: true,
+								        errorInfos: err
+							        })
+						        })
+				        })
+			        
+		        }else{
+			        return res.status(404).json({
+				        error: true,
+				        errorInfos: "USER NOT FOUND"
+			        })
+		        }
+		    })
+		    .catch((err)=>{
+			    return res.status(500).json({
+				    error: true,
+				    errorInfos: err
+			    });
+		    })
+	});
 
 	//=========DELETE==========//
 
@@ -619,7 +918,6 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 				});
 
 				if (!inFriendList && !inUserWaitingList) {
-					console.log("WARUM!!")
 					return res.status(409).json({
 						error: true,
 						errorInfos: "INVALID INFORMATION"
@@ -702,6 +1000,42 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 					error: true,
 					errorInfos: err
 				})
+			})
+	});
+	
+	router.delete('/:id/products/:id_product',(req, res, next)=>{
+		UsersModel.findById(req.params.id)
+			.then((user)=>{
+				if(user){
+					let index = user.products.findIndex((object)=>{
+					    return object.equals(id(req.params.id_product));
+					});
+					if(index < 0){
+						return res.status(403).json({
+							error: true,
+							errorInfos: "PRODUCT NOT FOUND"
+						})
+					}
+					
+					user.products.splice(index,1);
+					user.save()
+						.then((user)=>{
+						    return res.status(200).json({
+							    error: false
+						    })
+						})
+						.catch((err)=>{
+						    return res.status(500).json({
+							    error: true,
+							    errorInfos: err
+						    })
+						})
+				}else{
+					return res.status(404).json({
+						error: true,
+						errorInfos: "USER NOT FOUND"
+					})
+				}
 			})
 	});
 

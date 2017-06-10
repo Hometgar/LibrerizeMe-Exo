@@ -11,13 +11,25 @@ let client = amazon.createClient({
 	awsSecret: conf.aws.secret
 });
 
-client.itemLookup({
-	idType: 'ISBN',
-	itemId: '978-0747595823'
+client.itemSearch({
+	keywords: "Horizon : Zero Dawn"
 }).then(function(results){
 	console.log('then');
-	console.log(results);
+	console.log(results[0].ItemAttributes);
 }).catch(function(err){
 	console.log('catch');
-	console.log(err[0].Error);
+	console.log(err);
+	console.log((err.Error ? err.Error : err[0].Error));
+});
+
+client.itemLookup({
+	idType: 'EAN',
+	itemId: '0711719503484'
+}).then(function(results){
+	console.log('then');
+	console.log(results[0].ItemAttributes);
+}).catch(function(err){
+	console.log('catch');
+	console.log(err);
+	console.log((err.Error ? err.Error : err[0].Error));
 });

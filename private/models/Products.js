@@ -7,20 +7,25 @@ let ObjectID = Schema.ObjectId;
 module.exports = (app, connection) =>{
 	
 	let Products = connection.model('Product', new Schema({
-		label: Schema.Types.String,
+		title: Schema.Types.String,
 		type: Schema.Types.String,
-		EAN: {type: Schema.Types.String, primary: true},
-		like: Schema.Types.Number,
-		vue: Schema.Types.Number,
-		genre: Schema.Types.String,
-		editeur: Schema.Types.String,
-		auteur: [Schema.Types.String],
-		sortie: Schema.Types.String,
-		realisateur: [Schema.Types.String],
-		acteurs: [Schema.Types.String],
-		prix: Schema.Types.Number,
-		platforme: [Schema.Types.String],
-		artiste: [Schema.Types.String]
+		EAN: {
+			type: Schema.Types.Number,
+			index: true,
+			unique: true
+		},
+		publisher: Schema.Types.String,
+		author: [Schema.Types.String],
+		release: Schema.Types.String,
+		director: [Schema.Types.String],
+		actor: [Schema.Types.String],
+		platform: [Schema.Types.String],
+		artist: [Schema.Types.String],
+		ASIN: {
+			type: Schema.Types.String,
+			index: true,
+			unique: true
+		}
 	}));
 	
 	return Products;

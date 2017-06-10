@@ -19,6 +19,7 @@ module.exports = (app, connection) =>{
             unique: true
         },
         password: Schema.Types.String,
+        passwordToken: String,
         googleId: Schema.Types.String,
         facebookId: Schema.Types.String,
         asBeenVerified: {
@@ -27,17 +28,25 @@ module.exports = (app, connection) =>{
         },
         mailToken: Schema.Types.String,
         products: [{
-                type: ObjectID,
-                ref: "Product"
+            type: ObjectID,
+            ref: "Product"
         }],
         emprunts: [{
-            "owner":{
+            friend:{
+	            type: ObjectID,
+	            ref: "User"
+            },
+            owner:{
                 type: ObjectID,
                 ref: "User"
             },
-            "product":{
+            product:{
                 type: ObjectID,
                 ref: "Product"
+            },
+            state:{
+	            type: Schema.Types.String,
+	            enum:['VALIDATE', 'WAITING', 'RESTITUTE', 'REFUSED']
             }
         }],
         friends: [{
@@ -57,8 +66,15 @@ module.exports = (app, connection) =>{
     }));
     
     User.stateFriend = {
-        WAITING : 'WAITING',
-        VALIDATE: "VALIDATE"
+		WAITING : 'WAITING',
+		VALIDATE: "VALIDATE"
+	};
+	
+	User.stateEmprunt = {
+		WAITING : 'WAITING',
+		VALIDATE: "VALIDATE",
+		RESTITUTE: "RESTITUTE",
+		REFUSED: "REFUSED"
 	};
 
     return User;
