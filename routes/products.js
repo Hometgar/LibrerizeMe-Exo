@@ -1,6 +1,7 @@
 let express = require('express');
 let router = express.Router();
 let amazon = require('amazon-product-api');
+let id = require('mongoose').Types.ObjectId;
 
 //app conf
 const fs = require('fs');
@@ -88,12 +89,25 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 				next(err);
 			})
 	});
+
+	router.get('/:id',(req, res, next)=>{
+		ProductsModel.findById(id(req.params.id))
+			.then((product)=>{
+				res.status(200).json({
+					error: false,
+					product: product
+				});
+			})
+			.catch((err)=>{
+				next(err);
+			})
+	});
 	
 	/**
 	 * return filtered products by pack of 20
 	 * params EAN, keywords, type, offset
 	 */
-	router.get('/search/',(req, res, next)=>{
+	router.get('/search',(req, res, next)=>{
 		let filter = {};
 		
 		filter['$or'] = [];
