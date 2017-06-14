@@ -69,7 +69,7 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 		}
 		return result;
 	};
-	
+
 	//=========GET==========//
 	/**
 	 * Get products list by pack of 20
@@ -90,7 +90,114 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 			})
 	});
 
-	router.get('/:id',(req, res, next)=>{
+
+    /**
+     * return filtered products by pack of 20
+     * params EAN, keywords, type, offset
+     */
+    router.get('/search',(req, res, next)=>{
+        let filter = {};
+
+        filter['$or'] = [];
+        let keywordKey = [
+            'title',
+            'author',
+            'publisher',
+            'director',
+            'actor',
+            'platform',
+            'artiste',
+        ]
+        let value = req.query;
+
+        for (let key in req.query){
+            switch (key){
+                case 'EAN':
+                    filter.EAN = req.query.EAN;
+                    break;
+                case 'keywords':
+                    keywordKey.forEach((key)=>{
+                        let o ={};
+                        o[key] = {
+                            $regex: new RegExp('.*('+ value.keywords.split(',').join('|') +').*', "i")
+                        };
+                        filter.$or.push(o);
+                    })
+
+                    break;
+                case 'type':
+                    if(req.query.keywords) {
+                        filter.$and = [
+                            {
+                                type : req.query.type
+                            },
+                            {
+                                $or: filter.$or
+                            }
+                        ]
+                    }else{
+                        filter.type = req.query.type
+                    }
+                    delete filter.$or;
+                    break;
+            }
+        }
+
+        ProductsModel.find(filter)
+            .limit(20)
+            .skip(req.query.offset? req.query.offset * 20: 0)
+            .then((products)=>{
+                console.log(products);
+                if(products.length > 0){
+                    res.status(200).json({
+                        error: false,
+                        products: products
+                    })
+                }else{
+                    if(req.query.EAN){
+                        client.itemLookup({
+                            idType: 'EAN',
+                            itemId: req.query.EAN
+                        }).then(function(results){
+                            console.log(results);
+                            if(results.length > 0) {
+                                return res.status(200).json({
+                                    error: false,
+                                    products: formatProducts(results)
+                                });
+                            }else {
+                                return res.status(404).json({
+                                    error: true,
+                                    errorInfos: "NOT FOUND"
+                                });
+                            }
+                        }).catch(function(err){
+                            return res.status(500).json({
+                                error: true,
+                                errorInfos: (err.Error ? err.Error : err[0].Error)
+                            });
+                        });
+                    }
+
+                    if(req.query.keywords || req.query.type){
+                        return res.status(404).json({
+                            error: true,
+                            errorInfos: "NOT FOUND"
+                        });
+                    }
+                }
+            })
+            .catch((err)=>{
+                console.log(err);
+                return res.status(500).json({
+                    error: true,
+                    errorInfos: err
+                });
+            })
+    });
+
+
+    router.get('/:id',(req, res, next)=>{
 		ProductsModel.findById(id(req.params.id))
 			.then((product)=>{
 				res.status(200).json({
@@ -100,111 +207,6 @@ module.exports = (app, UsersModel, ProductsModel)=>{
 			})
 			.catch((err)=>{
 				next(err);
-			})
-	});
-	
-	/**
-	 * return filtered products by pack of 20
-	 * params EAN, keywords, type, offset
-	 */
-	router.get('/search',(req, res, next)=>{
-		let filter = {};
-		
-		filter['$or'] = [];
-		let keywordKey = [
-			'title',
-			'author',
-			'publisher',
-			'director',
-			'actor',
-			'platform',
-			'artiste',
-		]
-		let value = req.query;
-		
-		for (let key in req.query){
-			switch (key){
-				case 'EAN':
-					filter.EAN = req.query.EAN;
-					break;
-				case 'keywords':
-					keywordKey.forEach((key)=>{
-						let o ={};
-						o[key] = {
-							$regex: new RegExp('.*('+ value.keywords.split(',').join('|') +').*', "i")
-						};
-						filter.$or.push(o);
-					})
-					
-					break;
-				case 'type':
-					if(req.query.keywords) {
-						filter.$and = [
-							{
-								type : req.query.type
-							},
-							{
-								$or: filter.$or
-							}
-						]
-					}else{
-						filter.type = req.query.type
-					}
-					delete filter.$or;
-					break;
-			}
-		}
-		
-		ProductsModel.find(filter)
-			.limit(20)
-			.skip(req.query.offset? req.query.offset * 20: 0)
-			.then((products)=>{
-				console.log(products);
-			    if(products.length > 0){
-			    	res.status(200).json({
-					    error: false,
-					    products: products
-				    })
-			    }else{
-			    	if(req.query.EAN){
-			    		client.itemLookup({
-						    idType: 'EAN',
-						    itemId: req.query.EAN
-					    }).then(function(results){
-						    console.log(results);
-					    	if(results.length > 0) {
-							    return res.status(200).json({
-								    error: false,
-								    products: formatProducts(results)
-							    });
-						    }else {
-							    return res.status(404).json({
-								    error: true,
-								    errorInfos: "NOT FOUND"
-							    });
-						    }
-					    }).catch(function(err){
-						    return res.status(500).json({
-							    error: true,
-							    errorInfos: (err.Error ? err.Error : err[0].Error)
-						    });
-					    });
-				    }
-			     
-				    if(req.query.keywords || req.query.type){
-					    return res.status(404).json({
-						    error: true,
-						    errorInfos: "NOT FOUND"
-					    });
-				    }
-			    }
-			})
-			.catch((err)=>{
-				console.log(err);
-			    return res.status(500).json({
-				    error: true,
-				    errorInfos: err
-			    });
 			})
 	});
 

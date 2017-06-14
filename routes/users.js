@@ -56,19 +56,20 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 		return new Promise((resolve, reject)=>{
 			UsersModel.findById(userId)
 				.then((user)=>{
+				console.log(user);
 					if(!user.friends)
 						return resolve([]);
 
 					let extendFriends = user.friends.map((friend)=>{
 						console.log(filter, filter =! undefined? friend.state === filter : false);
-						if(filter? friend.state === filter : false){
+						if(filter? friend.state === filter : true){
 							return id(friend.user);
 						}else if(filter === undefined ){
 							console.log('!filter');
 						}
 					});
 
-
+					console.log(extendFriends);
 
 					UsersModel.find(
 						{ "_id":
@@ -172,8 +173,8 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 	 */
 	router.get('/',(req, res, next)=>{
 		UsersModel.find()
-			.skip(req.query.offset ? req.params.offset : 0)
 			.limit(20)
+            .skip(req.query.offset ? req.query.offset*20 : 0)
 			.then((users)=>{
 				res.status(200).json({
 					error: false,
@@ -271,7 +272,7 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 			.then((user)=>{
 				if(user){
 					ProductsModel.find({
-						id: {
+						_id: {
 							$in: [
 								user.products
 							]
@@ -283,12 +284,13 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 								products: products
 							});
 						})
-				}
+				}else {
 
-				return res.status(404).json({
-					error: true,
-					errorInfos: "USER NOT FOUND"
-				})
+                    return res.status(404).json({
+                        error: true,
+                        errorInfos: "USER NOT FOUND"
+                    })
+                }
 			})
 			.catch((err)=>{
 				return res.status(500).json({
@@ -307,11 +309,7 @@ module.exports = (app, UsersModel, ProductsModel, passport)=>{
 			.skip(req.query.offset? 20*req.query.offset : 0)
 			.then((user)=>{
 				if(user){
-					UsersModel.find({
-						id: {
-							$in: user.friends
-						}
-					})
+					getUserFriends(req.params.id)
 						.then((friends)=>{
 							return res.status(200).json({
 								error: false,
